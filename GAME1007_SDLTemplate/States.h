@@ -35,6 +35,7 @@ public:
 	virtual void Exit();
 	virtual void Resume();
 	int m_delta = 20;
+	int deathClock = 120;
 };
 
 class PauseState : public State

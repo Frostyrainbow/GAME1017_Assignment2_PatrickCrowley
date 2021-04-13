@@ -1,6 +1,8 @@
 #include "States.h"
 #include "StateManager.h"
 #include "Engine.h"
+#include "Player.h"
+#include "CollisionManager.h"
 #include <iostream>
 using namespace std;
 
@@ -54,17 +56,19 @@ GameState::GameState()
 
 void GameState::Enter()
 {
-	
+	Engine::Instance().m_player->SetDying(false);
 	Mix_PlayMusic(Engine::Instance().m_theme, -1); // 0-n for #number of loops, or -1 for infinite looping
 	Mix_VolumeMusic(16); //0-128
-	Mix_VolumeChunk(Engine::Instance().m_e_plane_fire, 8);
-	Mix_VolumeChunk(Engine::Instance().m_p_tank_fire, 8);
+	Mix_VolumeChunk(Engine::Instance().m_jump, 8);
 	Mix_VolumeChunk(Engine::Instance().m_death, 13);
 }
 
 void GameState::Update()
 {
 	m_delta++;
+
+	
+
 	if (Engine::Instance().KeyDown(SDL_SCANCODE_X))
 	{
 		StateManager::ChangeState(new TitleState());// Change to new TitleState
@@ -83,6 +87,8 @@ void GameState::Update()
 	Engine::Instance().m_mainGround2.GetDst()->x -= Engine::Instance().m_mainGroundSpeed;
 	Engine::Instance().m_foreGround2.GetDst()->x -= Engine::Instance().m_foreGroundSpeed;
 	Engine::Instance().m_backGround2.GetDst()->x -= Engine::Instance().m_backGroundSpeed;
+	Engine::Instance().m_pPlatform1.GetDst()->x -= Engine::Instance().m_foreGroundSpeed;
+	Engine::Instance().m_pPlatform2.GetDst()->x -= Engine::Instance().m_foreGroundSpeed;
 	//wrap backgrounds
 	if (Engine::Instance().m_mainGround1.GetDst()->x <= -WIDTH)
 	{
@@ -114,29 +120,22 @@ void GameState::Update()
 		//Bounce back to org pos
 		Engine::Instance().m_backGround2.GetDst()->x = WIDTH - 5;
 	}
-
-	if (Engine::Instance().KeyDown(SDL_SCANCODE_W))
+	if (Engine::Instance().m_pPlatform1.GetDst()->x <= -WIDTH)
 	{
-		//Engine::Instance().m_player->GetDst()->y -= Engine::Instance().m_speed;
+		//Bounce back to org pos
+		Engine::Instance().m_pPlatform1.GetDst()->x = WIDTH - 5;
 	}
-	/*else if (Engine::Instance().KeyDown(SDL_SCANCODE_S) && Engine::Instance().m_player->GetDst()->y < HEIGHT - Engine::Instance().m_player->GetDst()->h)
+	if (Engine::Instance().m_pPlatform2.GetDst()->x <= -WIDTH)
 	{
-		Engine::Instance().m_player->GetDst()->y += Engine::Instance().m_speed;
-	}*/
-	else if (Engine::Instance().KeyDown(SDL_SCANCODE_A) && Engine::Instance().m_player->GetDst()->x > 0)
-	{
-		Engine::Instance().m_player->GetDst()->x -= Engine::Instance().m_speed;
-	}
-	else if (Engine::Instance().KeyDown(SDL_SCANCODE_D) && Engine::Instance().m_player->GetDst()->x < WIDTH - Engine::Instance().m_player->GetDst()->w)
-	{
-		Engine::Instance().m_player->GetDst()->x += Engine::Instance().m_speed;
+		//Bounce back to org pos
+		Engine::Instance().m_pPlatform2.GetDst()->x = WIDTH - 5;
 	}
 
 	Engine::Instance().m_n_spawnTimer--;
 
 	if (Engine::Instance().m_n_spawnTimer <= 0)
 	{
-		Engine::Instance().m_ninjastars.push_back(new Ninjastar({ WIDTH, rand() % HEIGHT/2 + 200 })); //min 0 max half of height
+		Engine::Instance().m_ninjastars.push_back(new Ninjastar({ rand() % 1140 + WIDTH, rand() % 300 + 200 }));
 		cout << "ninjastar spawned" << endl;
 		Engine::Instance().m_n_spawnTimer = 120;
 	}
@@ -159,11 +158,22 @@ void GameState::Update()
 		}
 	}
 
+	for (int i = 0; i < Engine::Instance().m_ninjastars.size(); i++)
+	{
+		if (SDL_HasIntersection(Engine::Instance().m_ninjastars[i]->GetDst(), Engine::Instance().m_player->GetDst()))
+		{
+			//delete Engine::Instance().m_player;
+			Engine::Instance().m_player->SetDying(true);
+			cout << "Collision!" << endl;
+			break;
+		}
+	}
+
 	Engine::Instance().m_e_spawnTimer--;
 
 	if (Engine::Instance().m_e_spawnTimer <= 0)
 	{
-		Engine::Instance().m_enemys.push_back(new Enemy({ WIDTH+50, 600 })); //min 10 max 920
+		Engine::Instance().m_enemys.push_back(new Enemy({ rand() % 1140 + WIDTH, 600 })); 
 		cout << "enemy spawned" << endl;
 		Engine::Instance().m_e_spawnTimer = 120;
 	}
@@ -186,46 +196,49 @@ void GameState::Update()
 		}
 	}
 
-	Engine::Instance().m_c_spawnTimer--;
-
-	if (Engine::Instance().m_c_spawnTimer <= 0)
+	for (int i = 0; i < Engine::Instance().m_enemys.size(); i++)
 	{
-		Engine::Instance().m_caltrops.push_back(new Caltrop({ rand() % (WIDTH + WIDTH/2) + WIDTH , 600 })); //min 10 max 920
-		cout << "caltrop spawned" << endl;
-		Engine::Instance().m_c_spawnTimer = 120;
-	}
-
-	for (int i = 0; i < Engine::Instance().m_caltrops.size(); i++)
-	{
-		Engine::Instance().m_caltrops[i]->Update();
-	}
-
-	for (int i = 0; i < Engine::Instance().m_caltrops.size(); i++)
-	{
-		if (Engine::Instance().m_caltrops[i]->GetDst()->x <= -50)
+		if (SDL_HasIntersection(Engine::Instance().m_enemys[i]->GetDst(), Engine::Instance().m_player->GetDst()))
 		{
-			delete Engine::Instance().m_caltrops[i];
-			Engine::Instance().m_caltrops[i] = nullptr;
-			Engine::Instance().m_caltrops.erase(Engine::Instance().m_caltrops.begin() + i);
-			Engine::Instance().m_caltrops.shrink_to_fit();
-			cout << "Caltrop deleted" << endl;
+			//delete Engine::Instance().m_player;
+			
+			
+			cout << "Collision!" << endl;
 			break;
 		}
 	}
-
-	//for (int i = 0; i < Engine::Instance().m_caltrops.size(); i++)
-	//{
-	//	if (SDL_HasIntersection(Engine::Instance().m_caltrops[i]->GetDst(), Engine::Instance().m_player->GetDst()))
-	//	{
-	//		//delete Engine::Instance().m_player;
-	//		Mix_PlayChannel(-1, Engine::Instance().m_death, 0);
-	//		StateManager::ChangeState(new EndState);
-	//		cout << "Collision!" << endl;
-	//		break;
-	//	}
-	//}
 		
+	Engine::Instance().m_player->Update();
+	Player* player = Engine::Instance().m_player;
+	SDL_Rect* playerPos = Engine::Instance().m_player->GetDst();
+	if (CollisionManager::AABBCheck(playerPos, Engine::Instance().m_pPlatform1.GetDst()))
+	{
+		if ((playerPos->y + playerPos->h) - (float)player->GetVelY() <= Engine::Instance().m_pPlatform1.GetDst()->y)
+		{
+			player->StopY();
+			player->SetY(Engine::Instance().m_pPlatform1.GetDst()->y - playerPos->h);
+			player->SetGrounded(true);
+		}
+	}
+	if (CollisionManager::AABBCheck(playerPos, Engine::Instance().m_pPlatform2.GetDst()))
+	{
+		if ((playerPos->y + playerPos->h) - (float)player->GetVelY() <= Engine::Instance().m_pPlatform2.GetDst()->y)
+		{
+			player->StopY();
+			player->SetY(Engine::Instance().m_pPlatform2.GetDst()->y - playerPos->h);
+			player->SetGrounded(true);
+		}
+	}
 
+	if (Engine::Instance().m_player->IsDying())
+	{
+		deathClock--;
+		if (deathClock <= 0)
+		{
+			StateManager::ChangeState(new EndState);
+		}
+	}
+	
 }
 
 void GameState::Render()
@@ -244,21 +257,20 @@ void GameState::Render()
 	SDL_RenderCopy(Engine::Instance().m_pRenderer, Engine::Instance().m_pForegroundTexture, Engine::Instance().m_foreGround2.GetSrc(), Engine::Instance().m_foreGround2.GetDst());
 	SDL_RenderCopy(Engine::Instance().m_pRenderer, Engine::Instance().m_pMaingroundTexture, Engine::Instance().m_mainGround1.GetSrc(), Engine::Instance().m_mainGround1.GetDst());
 	SDL_RenderCopy(Engine::Instance().m_pRenderer, Engine::Instance().m_pMaingroundTexture, Engine::Instance().m_mainGround2.GetSrc(), Engine::Instance().m_mainGround2.GetDst());
-	SDL_RenderCopyEx(Engine::Instance().m_pRenderer, Engine::Instance().m_pTexture, Engine::Instance().m_player->GetSrc(), Engine::Instance().m_player->GetDst(), 0, NULL, SDL_FLIP_NONE);
+	SDL_RenderCopy(Engine::Instance().m_pRenderer, Engine::Instance().m_pPlatformTexture, Engine::Instance().m_pPlatform1.GetSrc(), Engine::Instance().m_pPlatform1.GetDst());
+	SDL_RenderCopy(Engine::Instance().m_pRenderer, Engine::Instance().m_pPlatformTexture, Engine::Instance().m_pPlatform2.GetSrc(), Engine::Instance().m_pPlatform2.GetDst());
 	for (int i = 0; i < Engine::Instance().m_ninjastars.size(); i++)
 	{
 		Engine::Instance().m_ninjastars[i]->Render(Engine::Instance().m_pRenderer, Engine::Instance().m_pNinjastarTexture);
 
 	}
-	for (int i = 0; i < Engine::Instance().m_caltrops.size(); i++)
-	{
-		Engine::Instance().m_caltrops[i]->Render(Engine::Instance().m_pRenderer, Engine::Instance().m_pCaltropTexture);
-	}
+
 	for (int i = 0; i < Engine::Instance().m_enemys.size(); i++)
 	{
 		Engine::Instance().m_enemys[i]->Render(Engine::Instance().m_pRenderer, Engine::Instance().m_pEnemyTexture);
 	}
 
+	Engine::Instance().m_player->Render();
 	SDL_RenderPresent(Engine::Instance().m_pRenderer); // Flip buffers - send data to window.
 	if (dynamic_cast<GameState*>(StateManager::GetStates().back()))
 	{
@@ -284,13 +296,6 @@ void GameState::Exit()
 	}
 	Engine::Instance().m_enemys.clear();
 	Engine::Instance().m_enemys.shrink_to_fit();
-	for (int i = 0; i < Engine::Instance().m_caltrops.size(); i++)
-	{
-		delete Engine::Instance().m_caltrops[i];
-		Engine::Instance().m_caltrops[i] = nullptr;
-	}
-	Engine::Instance().m_caltrops.clear();
-	Engine::Instance().m_caltrops.shrink_to_fit();
 	cout << "Exiting GameState..." << endl;
 }
 

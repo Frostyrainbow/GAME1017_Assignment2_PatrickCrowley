@@ -2,6 +2,7 @@
 #include "StateManager.h"
 #include "States.h"
 
+
 int Engine::Init(const char* title, int xPos, int yPos, int width, int height, int flags)
 {
 	cout << "Initializing engine..." << endl;
@@ -18,18 +19,18 @@ int Engine::Init(const char* title, int xPos, int yPos, int width, int height, i
 				 //Initialize subsystems
 				if (IMG_Init(IMG_INIT_PNG || IMG_INIT_JPG) != 0)
 				{
-					m_pTexture = IMG_LoadTexture(m_pRenderer, "Img/walk1.png");
+					m_pTexture = IMG_LoadTexture(m_pRenderer, "Img/Zato.png");
 					m_pMaingroundTexture = IMG_LoadTexture(m_pRenderer, "Img/Mainground.png");
 					m_pForegroundTexture = IMG_LoadTexture(m_pRenderer, "Img/foreground.png");
 					m_pBackgroundTexture = IMG_LoadTexture(m_pRenderer, "Img/background.png");
+					m_pPlatformTexture = IMG_LoadTexture(m_pRenderer, "Img/Platform.png");
 					m_pNinjastarTexture= IMG_LoadTexture(m_pRenderer, "Img/ninjastar.png");
 					m_pEnemyTexture = IMG_LoadTexture(m_pRenderer, "Img/eRun1.png");
-					m_pCaltropTexture = IMG_LoadTexture(m_pRenderer, "Img/caltrops.png");
 					m_pResumeButtonTexture = IMG_LoadTexture(m_pRenderer, "Img/ResumeButton.png");
 					m_pMenuButtonTexture = IMG_LoadTexture(m_pRenderer, "Img/MenuButton.png");
 					m_pStartButtonTexture = IMG_LoadTexture(m_pRenderer, "Img/StartButton.png");
-					m_pMenuBackgroundTexture = IMG_LoadTexture(m_pRenderer, "Img/Title.png");
-					m_pGameOverBackgroundTexture = IMG_LoadTexture(m_pRenderer, "Img/Gameover.png");
+					m_pMenuBackgroundTexture = IMG_LoadTexture(m_pRenderer, "Img/Title.jpg");
+					m_pGameOverBackgroundTexture = IMG_LoadTexture(m_pRenderer, "Img/Dead.jpg");
 
 					
 				}
@@ -43,10 +44,9 @@ int Engine::Init(const char* title, int xPos, int yPos, int width, int height, i
 					Mix_OpenAudio(22050, AUDIO_S16SYS, 2, 2048);
 					Mix_AllocateChannels(32);
 					//Load sounds
-					m_p_tank_fire = Mix_LoadWAV("Aud/p_tank_fire.wav");
-					m_e_plane_fire = Mix_LoadWAV("Aud/e_plane_fire.wav");
-					m_death = Mix_LoadWAV("Aud/boom.wav");
-					m_theme = Mix_LoadMUS("Aud/CCR.mp3");
+					m_jump = Mix_LoadWAV("Aud/jump.wav");
+					m_death = Mix_LoadWAV("Aud/playerdeath.wav");
+					m_theme = Mix_LoadMUS("Aud/MaiTheme.mp3");
 				}
 				else
 				{
@@ -64,31 +64,27 @@ int Engine::Init(const char* title, int xPos, int yPos, int width, int height, i
 	m_mouseCurr = SDL_GetMouseState(&m_mousePos.x, &m_mousePos.y);
 	m_mouseLast = m_mouseCurr;
 	
-	m_player = new Sprite;
-
-	m_player->SetRekts ( {0, 0, 256, 512}, {100, 550, 182, 274} ); 
+	
 	m_pResumeButton.SetRekts({ 0,0,189,58 }, { 420, 300, 189, 58 });
 	m_pMenuButton.SetRekts({ 0,0,189,58 }, { 420, 200, 189, 58 });
 	m_pStartButton.SetRekts({ 0,0,189,58 }, { 420, 400, 189, 58 });
 	m_pMenuBackground.SetRekts({ 0, 0, WIDTH, HEIGHT }, { 0, 0, WIDTH, HEIGHT });
 	m_pGameOverBackground.SetRekts({ 0, 0, WIDTH, HEIGHT }, { 0, 0, WIDTH, HEIGHT });
 	m_mainGround1.SetRekts({ 0, 0, WIDTH, HEIGHT }, { 0, 0, WIDTH, HEIGHT });
+	m_pPlatform1.SetRekts({ 0, 0, 1024, 145 }, { 0, 665, 1024, 145 });
 	m_foreGround1.SetRekts({ 0, 0, WIDTH, HEIGHT }, { 0, 0, WIDTH, HEIGHT });
 	m_backGround1.SetRekts({ 0, 0, WIDTH, HEIGHT }, { 0, 0, WIDTH, HEIGHT });
 	m_mainGround2.SetRekts({ 0, 0, WIDTH, HEIGHT }, { WIDTH, 0, WIDTH, HEIGHT });
 	m_foreGround2.SetRekts({ 0, 0, WIDTH, HEIGHT }, { WIDTH, 0, WIDTH, HEIGHT });
 	m_backGround2.SetRekts({ 0, 0, WIDTH, HEIGHT }, { WIDTH, 0, WIDTH, HEIGHT });
+	m_pPlatform2.SetRekts({ 0, 0, 1024, 145 }, { WIDTH, 665, 1024, 145 });
 	for (int i = 0; i < m_ninjastars.size(); i++)
 	{
 		m_ninjastars[i]->SetRekts( {0, 0, 128, 128}, { WIDTH + 50, 100, 128, 128} );
 	}
 	for (int i = 0; i < m_enemys.size(); i++)
 	{
-		m_enemys[i]->SetRekts({ 0, 0, 835, 482 }, { rand() % WIDTH + 0, -100, 64, 64 });
-	}
-	for (int i = 0; i < m_caltrops.size(); i++)
-	{
-		m_caltrops[i]->SetRekts({ 0, 0, 64, 64 }, { rand() % (WIDTH + WIDTH / 2) + WIDTH, 60, 64, 64 });
+		m_enemys[i]->SetRekts({ 0, 0, 512, 256 }, { rand() % WIDTH + 0, 400, 128, 128 });
 	}
 	STMA::PushState(new TitleState());
 	cout << "Initialization successful!" << endl;
@@ -239,13 +235,6 @@ void Engine::Clean()
 	}
 	m_enemys.clear();
 	m_enemys.shrink_to_fit();
-	for (int i = 0; i < m_caltrops.size(); i++)
-	{
-		delete m_caltrops[i];
-		m_caltrops[i] = nullptr;
-	}
-	m_caltrops.clear();
-	m_caltrops.shrink_to_fit();
 	SDL_DestroyRenderer(m_pRenderer);
 	SDL_DestroyWindow(m_pWindow);
 	SDL_DestroyTexture(m_pTexture);
@@ -254,9 +243,7 @@ void Engine::Clean()
 	SDL_DestroyTexture(m_pBackgroundTexture);
 	SDL_DestroyTexture(m_pNinjastarTexture);
 	SDL_DestroyTexture(m_pEnemyTexture);
-	SDL_DestroyTexture(m_pCaltropTexture);
-	Mix_FreeChunk(m_p_tank_fire);
-	Mix_FreeChunk(m_e_plane_fire);
+	Mix_FreeChunk(m_jump);
 	Mix_FreeChunk(m_death);
 	Mix_CloseAudio();
 	Mix_Quit();
